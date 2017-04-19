@@ -1,0 +1,52 @@
+<html>
+
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.9.0/lodash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.2.0/papaparse.js"></script>
+
+  <style>
+    .container {
+      display: flex;
+      width: 100%;
+      flex-direction: column;
+      justify-content: center;
+      z-index: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="input">
+      <input type="file" id="fileInput">
+      <input type='button' id='btnLoad' value='Load' onclick='handleFileSelect()'>
+    </div>
+    <div id="result">
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    function handleFileSelect() {
+      input = document.getElementById('fileInput');
+      file = input.files[0];
+      fr = new FileReader();
+      fr.onload = receivedText;
+      fr.readAsText(file);
+    }
+
+    function receivedText() {
+      var data = Papa.parse(fr.result, {
+        header: true,
+      });
+      const entries = data.data;
+      console.debug('received text', entries);
+      _.forEach(entries, function(entry) {
+        var pre = document.createElement('pre');
+        pre.innerHTML = entry;
+        document.getElementById('result').appendChild(pre);
+      })
+    }
+  </script>
+</body>
+
+</html>
