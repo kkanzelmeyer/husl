@@ -3,6 +3,7 @@
 <head>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.9.0/lodash.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.2.0/papaparse.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/3.12.0/math.min.js"></script>
 
   <style>
     .container {
@@ -45,7 +46,13 @@
     <table id="result">
       <tr>
         <th>Name</th>
-        <th>Score</th>
+        <th>Experience</th>
+        <th>Activity</th>
+        <th>Skill</th>
+        <th>Age</th>
+        <th>Height</th>
+        <th>Competency</th>
+        <th>Overall</th>
         <th>Rank</th>
       </tr>
     </table>
@@ -60,35 +67,65 @@
       fr.readAsText(file);
     }
 
+    var playerHeights = [];
+    var heightStdDev = 0;
+    var heightMean = 0;
+
     function receivedText() {
       var data = Papa.parse(fr.result, {
         header: true,
       });
       var entries = data.data;
-      // var group = _.groupBy(entries, 'age');
-      // var arr = Object.keys(group);
-      var players = _.chain(entries)
-                     .map(gradePlayer)
-                     .sortBy(function(p) { return p.score; })
-                     .reverse()
-                     .value();
+
+      // add a property for the player's height
+      var players = _.map(entries, addHeightProperty);
+
+      // calculate the height standard deviation
+      playerHeights = _.filter(playerHeights, function(height) { return height > 50 })
+      heightStdDev = math.std(playerHeights);
+      heightMean = math.mean(playerHeights);
+      console.debug({heightStdDev, heightMean});
+
+      // grade the players
+      var _players = _.chain(players)
+                 .map(gradePlayer)
+                 .sortBy(function(p) { return p.score.overall; })
+                 .reverse()
+                 .value();
 
       // display results
-      _.map(players, function(p, i) {
+      _.map(_players, function(p, i) {
         var name = p.first_name + ' ' + p.last_name;
         var row = document.createElement('tr');
         var col_name = document.createElement('td');
-        var col_score = document.createElement('td');
         var col_rank = document.createElement('td');
+        var col_exp = document.createElement('td');
+        var col_act = document.createElement('td');
+        var col_skill = document.createElement('td');
+        var col_age = document.createElement('td');
+        var col_height = document.createElement('td');
+        var col_comp = document.createElement('td');
+        var col_score = document.createElement('td');
         col_name.innerHTML = name;
-        col_score.innerHTML = p.score;
         col_rank.innerHTML = i + 1;
+        col_exp.innerHTML = p.score.expScore;
+        col_act.innerHTML = p.score.activityScore;
+        col_skill.innerHTML = p.score.skillScore;
+        col_age.innerHTML = p.score.ageScore;
+        col_height.innerHTML = p.score.heightScore;
+        col_comp.innerHTML = p.score.competency;
+        col_score.innerHTML = p.score.overall;
         row.appendChild(col_name);
+        row.appendChild(col_exp);
+        row.appendChild(col_act);
+        row.appendChild(col_skill);
+        row.appendChild(col_age);
+        row.appendChild(col_height);
+        row.appendChild(col_comp);
         row.appendChild(col_score);
         row.appendChild(col_rank);
         document.getElementById('result').appendChild(row);
-      })
-      console.debug('players', players);
+      });
     }
 
     /*
@@ -97,13 +134,29 @@
      * higher number = greater importance
      * ------------------------------------------------------------
      */
-    var AGE_WEIGHT = 1;
-    var HEIGHT_WEIGHT = 1;
+    var AGE_WEIGHT = 0.75;
+    var HEIGHT_WEIGHT = 0.75;
     var ACTIVITY_WEIGHT = 1;
     var EXP_WEIGHT = 1;
     var SKILL_WEIGHT = 1;
-    var COMP_WEIGHT = 1;
+    var COMP_WEIGHT = 0.75;
 
+    /**
+     * Function to calculate the player's height
+     * @param {Object} input the player to measure
+     * @return {Object}      the input player with height and competency added
+     */
+    function addHeightProperty(input) {
+      var player = _.cloneDeep(input);
+      var _feet = normalizeHeight(player.Height_feet);
+      var _in = normalizeHeight(player.Height_inches);
+      var height = (_feet.result * 12) + _in.result;
+      var competency = (_feet.accuracy + _in.accuracy) / 2;
+      player['height'] = height;
+      player['competency'] = competency;
+      playerHeights.push(height);
+      return player;
+    }
     /**
      * THE MAIN ALGORITHM
      * @method gradePlayer
@@ -115,15 +168,20 @@
 
       // ignore incomplete applicants
       if (player.status === 'incomplete') {
-        player.score = 0;
+        player.score = {
+          heightScore: 0,
+          expScore: 0,
+          activityScore: 0,
+          skillScore: 0,
+          ageScore: 0,
+          competency: 0,
+          overall: 0
+        };
         return player;
       }
 
       // height
-      var _feet = normalizeHeight(player.Height_feet);
-      var _in = normalizeHeight(player.Height_inches);
-      var height = (_feet.result * 12) + _in.result;
-      var competency = (_feet.accuracy + _in.accuracy) / 2;
+      var heightScore = rateHeight(player.height);
 
       // get experience score
       var expScore = _.find(experience, function(o) { return o.level === player.Experience_Level}).weight;
@@ -135,14 +193,25 @@
       var skillScore = _.find(skill, function(o) { return o.level === player.Skill_Level}).weight;
 
       // get age score
-      var ageScore = ageGrade(player.age);
+      var ageScore = rateAge(player.age);
+
+      var competency = player.competency;
 
       // calculate score
-      var score = ((height * HEIGHT_WEIGHT) +
+      var overall = ((heightScore * HEIGHT_WEIGHT) +
                   (expScore * EXP_WEIGHT) +
                   (activityScore * ACTIVITY_WEIGHT) +
                   (skillScore * SKILL_WEIGHT) +
                   (ageScore * AGE_WEIGHT)) * ((competency * COMP_WEIGHT) / 100);
+      var score = {
+        heightScore,
+        expScore,
+        activityScore,
+        skillScore,
+        ageScore,
+        competency,
+        overall
+      };
       player.score = score;
       return player;
     }
@@ -178,19 +247,42 @@
       });
     }
 
+    function rateHeight(inches) {
+      if (inches === 0) {
+        return 50;
+      }
+      var deviation = inches - heightMean;
+      var absDeviation = Math.abs(deviation);
+      // height is within standard deviation
+      if (absDeviation < heightStdDev) {
+        return 50;
+      } else if (deviation < 0 && absDeviation < (2*heightStdDev)) {
+        // height is in the negative 2 sigma
+        return 25;
+      } else if (deviation < 0 && absDeviation < (3*heightStdDev)) {
+        // height is in the negative 3 sigma
+        return 0;
+      } else if (deviation > 0 && absDeviation < (2*heightStdDev)) {
+        // height is in the positive 2 sigma
+        return 75;
+      } else {
+        return 100;
+      }
+    }
+
     /**
      * Function to give a grade based on the age input
-     * @method ageGrade
+     * @method rateAge
      * @param  {Number} age the age to grade
      * @return {Number}     the grade of the age
      */
-    function ageGrade(age) {
-      if (age < 16) {
-        return 85;
-      } else if (age > 16 && age < 30) {
-        return 100;
-      } else if (age > 30 && age < 40) {
+    function rateAge(age) {
+      if (age < 20) {
         return 60;
+      } else if (age > 20 && age < 28) {
+        return 100;
+      } else if (age > 28 && age < 35) {
+        return 80;
       } else {
         return 40;
       }
