@@ -12,6 +12,27 @@
       justify-content: center;
       z-index: 0;
     }
+    table {
+      font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    td, th {
+      padding: 7px;
+    }
+
+    tr { border: 1px solid #ddd; }
+    tr:nth-child(even){background-color: #f2f2f2;}
+    tr:hover {background-color: #ddd;}
+
+    th {
+        padding-top: 12px;
+        padding-bottom: 12px;
+        text-align: left;
+        background-color: #43e8d8;
+        color: white;
+    }
   </style>
 </head>
 
@@ -21,8 +42,13 @@
       <input type="file" id="fileInput">
       <input type='button' id='btnLoad' value='Load' onclick='handleFileSelect()'>
     </div>
-    <div id="result">
-    </div>
+    <table id="result">
+      <tr>
+        <th>Name</th>
+        <th>Score</th>
+        <th>Rank</th>
+      </tr>
+    </table>
   </div>
 
   <script type="text/javascript">
@@ -44,10 +70,33 @@
       var players = _.chain(entries)
                      .map(gradePlayer)
                      .sortBy(function(p) { return p.score; })
+                     .reverse()
                      .value();
+
+      // display results
+      _.map(players, function(p, i) {
+        var name = p.first_name + ' ' + p.last_name;
+        var row = document.createElement('tr');
+        var col_name = document.createElement('td');
+        var col_score = document.createElement('td');
+        var col_rank = document.createElement('td');
+        col_name.innerHTML = name;
+        col_score.innerHTML = p.score;
+        col_rank.innerHTML = i + 1;
+        row.appendChild(col_name);
+        row.appendChild(col_score);
+        row.appendChild(col_rank);
+        document.getElementById('result').appendChild(row);
+      })
       console.debug('players', players);
     }
 
+    /*
+     * ------------------------------------------------------------
+     * CONSTANTS TO CONTROL WHICH FACTORS ARE MOST IMPORTANT
+     * higher number = greater importance
+     * ------------------------------------------------------------
+     */
     var AGE_WEIGHT = 1;
     var HEIGHT_WEIGHT = 1;
     var ACTIVITY_WEIGHT = 1;
@@ -66,7 +115,7 @@
 
       // ignore incomplete applicants
       if (player.status === 'incomplete') {
-        player.score = 400;
+        player.score = 0;
         return player;
       }
 
