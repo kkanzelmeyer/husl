@@ -38,14 +38,75 @@
       var data = Papa.parse(fr.result, {
         header: true,
       });
-      const entries = data.data;
-      console.debug('received text', entries);
-      _.forEach(entries, function(entry) {
-        var pre = document.createElement('pre');
-        pre.innerHTML = entry;
-        document.getElementById('result').appendChild(pre);
-      })
+      var entries = data.data;
+      var group = _.groupBy(entries, 'Height_inches');
+      var arr = Object.keys(group);
+      var normalized = _.map(arr, normalizeHeight);
+      console.debug('group', normalized);
+      // var pre = document.createElement('pre');
+      // pre.innerHTML = JSON.stringify(groups, null, 2);
+      // document.getElementById('result').appendChild(pre);
+      // _.forEach(groups, function(entry) {
+      // })
     }
+
+    /**
+     * function to normalize abnormal height inputs
+     * @method normalizeHeight
+     * @param  {[type]}        num [description]
+     * @return {[type]}
+     */
+    function normalizeHeight(num) {
+      var nums = num.split(/[^0-9]/);
+      console.debug(num, nums, nums.length);
+      var accuracy = 100;
+      // deduct accuracy points for bad input
+      if (nums.length > 1) {
+        accuracy -= 25;
+      }
+      var result = parseInt(nums[0]);
+      // if a number was entered greater than 12
+      // assume its total height in inches and adjust
+      // accordingly. also deduct accuracy points
+      if (result > 12) {
+        result = result % 12;
+        accuracy -= 25;
+      }
+
+      return ({
+        result: result || 0,
+        accuracy: accuracy
+      });
+    }
+
+    var experience = [
+      {level: 'I have played  in an ultimate league (summer or winter league) for 4+ years', weight: 1},
+      {level: 'I have played in an ultimate League (summer  or winter league) 1-3 years', weight: 1},
+      {level: 'I have  played pick-up a few times', weight: 1},
+      {level: "Never  played before", weight: 1},
+      {level: "I have played club regionals and/or nationals", weight: 1},
+      {level: "I have  played college regionals and/or nationals", weight: 1},
+      {level: "I have played ultimate at a club level for  4+ years", weight: 1},
+    ]
+
+    var activity = [
+      {level: "Summer League is exercise", weight: 1},
+      {level: "I workout outside of ultimate occasionally", weight: 1},
+      {level: "I workout at least 3 times a week", weight: 1},
+      {level: "I'm a  long distance runner", weight: 1},
+      {level: "I play  wii for exercise", weight: 1},
+      {level: "Sprinting is what I do for fun. I will  be sprinting on the sidelines", weight: 1},
+      {level: "I never  exercise", weight: 1},
+    ]
+
+    var skill = [
+      {level: "Backhand and flick (both accurate)", weight: 1},
+      {level: "Backhand (accurate) and Flick (still not accurate)", weight: 1},
+      {level: "Backhand only (accurate)", weight: 1},
+      {level: "Backhand only (still not accurate)", weight: 1},
+      {level: "Long throws backhand and flick (Accurate)", weight: 1},
+      {level: "Long throws backhand only (Accurate)", weight: 1},
+    ]
   </script>
 </body>
 
