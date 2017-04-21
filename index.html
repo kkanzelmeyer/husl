@@ -93,6 +93,18 @@
                  .reverse()
                  .value();
 
+      // print the results to csv
+      var csvData = _.reduce(_players, function(res, player, i) {
+        res.push({
+          rank: i + 1,
+          first_name: player.first_name,
+          last_name: player.last_name,
+        });
+        return res;
+      }, []);
+      var csv = Papa.unparse(csvData);
+      console.debug(csv);
+
       // display results
       _.map(_players, function(p, i) {
         var name = p.first_name + ' ' + p.last_name;
@@ -139,6 +151,7 @@
     var ACTIVITY_WEIGHT = 0.9;
     var EXP_WEIGHT = 1;
     var SKILL_WEIGHT = 0.9;
+    var ROUND_WEIGHT = 1.5;
     var COMP_WEIGHT = 0.75;
 
     /**
@@ -195,14 +208,21 @@
       // get age score
       var ageScore = rateAge(player.age);
 
+      // competency
       var competency = player.competency;
 
+      // round
+      var round = player.round || 100;
+      var roundScore = rateRound(round);
+
       // calculate score
-      var overall = ((heightScore * HEIGHT_WEIGHT) +
-                  (expScore * EXP_WEIGHT) +
-                  (activityScore * ACTIVITY_WEIGHT) +
-                  (skillScore * SKILL_WEIGHT) +
-                  (ageScore * AGE_WEIGHT)) * ((competency * COMP_WEIGHT) / 100);
+      var overall = ((heightScore * HEIGHT_WEIGHT)
+                    + (expScore * EXP_WEIGHT)
+                    + (activityScore * ACTIVITY_WEIGHT)
+                    + (skillScore * SKILL_WEIGHT)
+                    + (roundScore * ROUND_WEIGHT)
+                    + (ageScore * AGE_WEIGHT))
+                    * ((competency * COMP_WEIGHT) / 100);
       var score = {
         heightScore,
         expScore,
@@ -210,6 +230,7 @@
         skillScore,
         ageScore,
         competency,
+        roundScore,
         overall
       };
       player.score = score;
@@ -286,6 +307,10 @@
       } else {
         return 40;
       }
+    }
+
+    function rateRound(round) {
+      return Math.round(100 / round);
     }
 
     var experience = [
